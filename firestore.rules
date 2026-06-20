@@ -1,0 +1,155 @@
+rules_version = '2';
+service cloudfire.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+
+    // 1. Is user authenticated
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // 2. Is email verified
+    function emailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    // 3. Document ID validity pattern
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // 4. Safe fetching of user profiles
+    function getUserProfile(uid) {
+      return get(/databases/$(database)/documents/userProfiles/$(uid)).data;
+    }
+
+    // 5. Check if user is Super Admin
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'aymen.abdullah@bh.edu.pk' ||
+        (exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) && getUserProfile(request.auth.uid).role == 'super_admin')
+      );
+    }
+
+    // 6. Check if user is Regional Admin
+    function isRegionalAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'sadiq.khan@bh.edu.pk' ||
+        (exists(/databases/$(database)/documents/userProfiles/$(request.auth.uid)) && getUserProfile(request.auth.uid).role == 'regional_admin')
+      );
+    }
+
+    // 7. Get Admin region (BCR/BSR/BNR)
+    function getUserRegion() {
+      return request.auth.token.email == 'sadiq.khan@bh.edu.pk' ? 'Centre' : getUserProfile(request.auth.uid).region;
+    }
+
+    // 8. Global default deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ------------------------------------------------------------
+    // 1. USER PROFILES COLLECTION
+    // ------------------------------------------------------------
+    match /userProfiles/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin() || isRegionalAdmin());
+      
+      allow create: if isSignedIn() && (
+        // Self creation allows choosing safe roles except super_admin or regional_admin
+        (request.auth.uid == userId && (
+          request.resource.data.role == 'school_head' || 
+          request.resource.data.role == 'read_only' ||
+          // But bootstrap super_admin allows the specific email
+          (request.auth.token.email == 'aymen.abdullah@bh.edu.pk' && request.resource.data.role == 'super_admin') ||
+          (request.auth.token.email == 'sadiq.khan@bh.edu.pk' && request.resource.data.role == 'regional_admin')
+        )) ||
+        isSuperAdmin()
+      );
+
+      allow update: if isSignedIn() && (
+        isSuperAdmin() ||
+        // User can update their own non-role fields
+        (request.auth.uid == userId && 
+         request.resource.data.role == resource.data.role && 
+         (!request.resource.data.keys().hasAny(['role']) || request.resource.data.role == resource.data.role))
+      );
+
+      allow delete: if isSuperAdmin();
+    }
+
+    // ------------------------------------------------------------
+    // 2. CAMPUSES COLLECTION
+    // ------------------------------------------------------------
+    match /campuses/{branchId} {
+      allow read: if true; // Telemetry maps are public and visible to parents and school visitors
+      
+      allow create: if isSuperAdmin() && isValidId(branchId);
+
+      allow update: if isSignedIn() && isValidId(branchId) && (
+        isSuperAdmin() ||
+        (isRegionalAdmin() && resource.data.region == getUserRegion())
+      );
+
+      allow delete: if isSuperAdmin() && isValidId(branchId);
+    }
+
+    // ------------------------------------------------------------
+    // 3. SAFETY ALERTS COLLECTION
+    // ------------------------------------------------------------
+    match /safetyAlerts/{alertId} {
+      allow read: if true; // Safety notifications broadcast to general parents and drivers
+      
+      allow create: if isSignedIn() && isValidId(alertId) && (
+        isSuperAdmin() ||
+        (isRegionalAdmin() && request.resource.data.region == getUserRegion())
+      );
+
+      allow update: if isSignedIn() && isValidId(alertId) && (
+        isSuperAdmin() ||
+        (isRegionalAdmin() && resource.data.region == getUserRegion())
+      );
+
+      allow delete: if isSuperAdmin() && isValidId(alertId);
+    }
+
+    // ------------------------------------------------------------
+    // 4. INCIDENT REPORTS COLLECTION
+    // ------------------------------------------------------------
+    match /incidentReports/{reportId} {
+      allow read: if isSignedIn(); // Logged-in personnel can review reports list
+      
+      allow create: if isSignedIn() && emailVerified() && isValidId(reportId) && (
+        request.resource.data.reporterEmail.matches('^[a-zA-Z0-9_.-]+@bh\\.edu\\.pk$')
+      );
+
+      allow update: if isSignedIn() && isValidId(reportId) && (
+        isSuperAdmin() ||
+        (isRegionalAdmin() && get(/databases/$(database)/documents/campuses/$(resource.data.campusId)).data.region == getUserRegion())
+      );
+
+      allow delete: if isSuperAdmin() && isValidId(reportId);
+    }
+
+    // ------------------------------------------------------------
+    // 5. USER STATE ADDITIONS (GAMIFICATION STATUS)
+    // ------------------------------------------------------------
+    match /usersState/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin() || isRegionalAdmin());
+      
+      allow create, write, update: if isSignedIn() && (request.auth.uid == userId || isSuperAdmin() || isRegionalAdmin());
+    }
+
+    // ------------------------------------------------------------
+    // 6. DISASTER PRESETS ACTIVE
+    // ------------------------------------------------------------
+    match /disasterPresetsActive/{presetId} {
+      allow read: if true;
+      
+      allow create, update: if isSignedIn() && (isSuperAdmin() || isRegionalAdmin());
+
+      allow delete: if isSuperAdmin();
+    }
+  }
+}

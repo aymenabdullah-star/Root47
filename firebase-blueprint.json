@@ -1,0 +1,132 @@
+{
+  "entities": {
+    "Campus": {
+      "title": "Campus",
+      "description": "Represents a single BSS campus branch with its weather data and override status",
+      "type": "object",
+      "properties": {
+        "branchId": { "type": "string" },
+        "name": { "type": "string" },
+        "region": { "type": "string", "enum": ["Centre", "South", "North"] },
+        "city": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "active": { "type": "boolean" },
+        "weather": {
+          "type": "object",
+          "properties": {
+            "temp": { "type": "number" },
+            "humidity": { "type": "number" },
+            "chanceOfRain": { "type": "number" },
+            "windSpeed": { "type": "number" },
+            "aqi": { "type": "number" },
+            "uvIndex": { "type": "number" }
+          },
+          "required": ["temp", "humidity", "chanceOfRain", "windSpeed", "aqi", "uvIndex"]
+        },
+        "operationalStatus": { "type": "string", "enum": ["Operational", "Caution", "Severe Disruption"] },
+        "manualOverride": { "type": "boolean" },
+        "overrideReason": { "type": "string" },
+        "hazardEffectId": { "type": "string" }
+      },
+      "required": ["branchId", "name", "region", "city", "latitude", "longitude", "active", "weather", "operationalStatus"]
+    },
+    "SafetyAlert": {
+      "title": "SafetyAlert",
+      "description": "Safety broadcasts/alerts designed for parents and drivers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "campusId": { "type": "string" },
+        "campusName": { "type": "string" },
+        "region": { "type": "string", "enum": ["Centre", "South", "North"] },
+        "status": { "type": "string", "enum": ["Pending Review", "Broadcasted", "Dismissed"] },
+        "severity": { "type": "string", "enum": ["A", "B"] },
+        "message": { "type": "string" },
+        "title": { "type": "string" },
+        "channels": {
+          "type": "object",
+          "properties": {
+            "sms": { "type": "boolean" },
+            "whatsapp": { "type": "boolean" },
+            "email": { "type": "boolean" }
+          },
+          "required": ["sms", "whatsapp", "email"]
+        },
+        "generatedAnnouncement": {
+          "type": "object",
+          "properties": {
+            "subject": { "type": "string" },
+            "emailBody": { "type": "string" },
+            "smsVolume": { "type": "string" }
+          }
+        },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "campusId", "campusName", "region", "status", "severity", "message", "title", "channels", "timestamp"]
+    },
+    "IncidentReport": {
+      "title": "IncidentReport",
+      "description": "Crowdsourced report of weather incidents from school staff",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "campusId": { "type": "string" },
+        "campusName": { "type": "string" },
+        "reporterEmail": { "type": "string" },
+        "reporterName": { "type": "string" },
+        "hazardType": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "Approved", "Dismissed"] },
+        "reportedWeather": {
+          "type": "object"
+        },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "campusId", "campusName", "reporterEmail", "reporterName", "hazardType", "description", "status", "timestamp"]
+    },
+    "UserStateAddition": {
+      "title": "UserStateAddition",
+      "description": "Persistent gamification profile elements for user accounts",
+      "type": "object",
+      "properties": {
+        "points": { "type": "integer" },
+        "badges": { "type": "array" },
+        "clicksCount": { "type": "integer" }
+      },
+      "required": ["points", "badges", "clicksCount"]
+    },
+    "DisasterPresetActive": {
+      "title": "DisasterPresetActive",
+      "description": "Represents the active status of disaster presets",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["id", "active"]
+    }
+  },
+  "firestore": {
+    "/campuses/{branchId}": {
+      "schema": "Campus",
+      "description": "Collection of campuses with telemetry data"
+    },
+    "/safetyAlerts/{alertId}": {
+      "schema": "SafetyAlert",
+      "description": "Collection of safety alerts and broadcasts"
+    },
+    "/incidentReports/{reportId}": {
+      "schema": "IncidentReport",
+      "description": "Collection of crowdsourced reports"
+    },
+    "/usersState/{userId}": {
+      "schema": "UserStateAddition",
+      "description": "Collection of user gamification states"
+    },
+    "disasterPresetsActive/{presetId}": {
+      "schema": "DisasterPresetActive",
+      "description": "Active state of disaster presets in the system"
+    }
+  }
+}

@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bss-navy: #054593;
+  --color-bss-navy-dark: #032d60;
+  --color-bss-navy-deep: #021a37;
+  --color-bss-navy-light: #eff4fc;
+  --color-bss-gold: #f2a900;
+  --color-bss-gold-dark: #cc8e00;
+  --color-bss-gold-light: #fef7e6;
+  --color-bss-gold-glow: #fffbe6;
+}
+
