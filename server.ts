@@ -3,7 +3,6 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI, Type } from '@google/genai';
-import { Resend } from 'resend';
 import { generateCampuses, haversineDistance } from './src/data/campuses.js';
 import { fetchCampusesFromSheet } from './src/sheetSync.js';
 import { fetchWeatherWalay } from './src/weatherwalay.js';
@@ -725,73 +724,90 @@ Return your response strictly in JSON format matching the following schema. No e
   }
 });
 
-// 11. Real email broadcast via Resend (free tier)
-const SUPER_ADMIN_EMAIL = 'aymen.abdullah@bh.edu.pk';
+// 11. Real email broadcast via SendGrid
+const SUPER_ADMIN_EMAIL = process.env.ALERT_RECIPIENT_EMAIL || 'aymen.abdullah@bh.edu.pk';
+const FROM_EMAIL = 'no-reply@bcp.net.pk';
+
+const sgMail = {
+  async send(message: { from: { email: string; name: string }; to: string; subject: string; html: string }) {
+    const sgApiKey = process.env.SENDGRID_API_KEY;
+    if (!sgApiKey) {
+      throw new Error('SENDGRID_API_KEY not configured.');
+    }
+
+    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${sgApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: message.to }] }],
+        from: message.from,
+        subject: message.subject,
+        content: [{ type: 'text/html', value: message.html }],
+      }),
+    });
+
+    if (!response.ok) {
+      const details = await response.text();
+      throw new Error(`SendGrid rejected request (${response.status}): ${details}`);
+    }
+  },
+};
 
 app.post('/api/broadcast/email', async (req, res) => {
-  const { subject, emailBody, campusName, campusId, region, channels } = req.body;
+  const { subject, emailBody, campusName, campusId, region } = req.body;
 
-  const resendApiKey = process.env.RESEND_API_KEY;
+  const sgApiKey = process.env.SENDGRID_API_KEY;
 
-  if (!resendApiKey || resendApiKey === 'REPLACE_WITH_RESEND_API_KEY') {
-    console.warn('[Email] RESEND_API_KEY not configured — email broadcast skipped.');
+  if (!sgApiKey || sgApiKey === 'REPLACE_WITH_SENDGRID_API_KEY') {
+    console.warn('[Email] SENDGRID_API_KEY not configured — email broadcast skipped.');
     return res.json({
       success: false,
       skipped: true,
-      message: 'Email skipped: RESEND_API_KEY not configured. Add your key to .env.local to enable real delivery.'
+      message: 'Email skipped: SENDGRID_API_KEY not configured.'
     });
   }
 
-  try {
-    const resend = new Resend(resendApiKey);
-
-    const htmlBody = `
-      <div style="font-family: Arial, sans-serif; max-width: 680px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-        <div style="background: #054593; padding: 20px 24px; display: flex; align-items: center; gap: 12px;">
-          <div>
-            <p style="margin: 0; color: #f2a900; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Beaconhouse School System — HSEQ</p>
-            <h1 style="margin: 4px 0 0; color: #ffffff; font-size: 16px; font-weight: 700;">Meteorological Watchtower Alert</h1>
-          </div>
-        </div>
-
-        <div style="background: #fff7ed; border-bottom: 3px solid #f97316; padding: 12px 24px;">
-          <p style="margin: 0; font-size: 12px; color: #9a3412; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
-            ⚠️ Safety Dispatch — ${campusName || 'BSS Campus'} · ${region || ''} Region · ${campusId || ''}
-          </p>
-        </div>
-
-        <div style="padding: 24px; background: #ffffff;">
-          <h2 style="margin: 0 0 16px; font-size: 18px; color: #1e293b;">${subject}</h2>
-          <div style="font-size: 14px; color: #334155; line-height: 1.7; white-space: pre-wrap;">${emailBody}</div>
-        </div>
-
-        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 24px;">
-          <p style="margin: 0; font-size: 11px; color: #94a3b8;">
-            Delivered by BMW (Beaconhouse Meteorological Watchtower) · Pakistan Safety Operations Centre<br/>
-            This is an automated safety dispatch. Do not reply directly to this email.
-          </p>
-        </div>
+  const htmlBody = `
+    <div style="font-family: Arial, sans-serif; max-width: 680px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+      <div style="background: #054593; padding: 20px 24px;">
+        <p style="margin: 0; color: #f2a900; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Beaconhouse School System — HSEQ</p>
+        <h1 style="margin: 4px 0 0; color: #ffffff; font-size: 16px; font-weight: 700;">Beaconhouse Meteorological Watchtower Alert</h1>
       </div>
-    `;
+      <div style="background: #fff7ed; border-bottom: 3px solid #f97316; padding: 12px 24px;">
+        <p style="margin: 0; font-size: 12px; color: #9a3412; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
+          ⚠️ Safety Dispatch — ${campusName || 'BSS Campus'} · ${region || ''} Region · ${campusId || ''}
+        </p>
+      </div>
+      <div style="padding: 24px; background: #ffffff;">
+        <h2 style="margin: 0 0 16px; font-size: 18px; color: #1e293b;">${subject}</h2>
+        <div style="font-size: 14px; color: #334155; line-height: 1.7; white-space: pre-wrap;">${emailBody}</div>
+      </div>
+      <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 24px;">
+        <p style="margin: 0; font-size: 11px; color: #94a3b8;">
+          Delivered by BMW (Beaconhouse Meteorological Watchtower) · Pakistan Safety Operations Centre<br/>
+          This is an automated safety dispatch. Do not reply directly to this email.
+        </p>
+      </div>
+    </div>
+  `;
 
-    const { data, error } = await resend.emails.send({
-      from: 'BMW Safety Dispatch <onboarding@resend.dev>',
-      to: [SUPER_ADMIN_EMAIL],
+  try {
+    await sgMail.send({
+      from: { email: FROM_EMAIL, name: 'BMW Safety Dispatch' },
+      to: SUPER_ADMIN_EMAIL,
       subject: subject || `⚠️ BSS Safety Alert — ${campusName}`,
       html: htmlBody,
     });
 
-    if (error) {
-      console.error('[Email] Resend delivery error:', error);
-      return res.status(500).json({ success: false, message: error.message });
-    }
-
-    console.log(`[Email] Safety dispatch sent to ${SUPER_ADMIN_EMAIL} — ID: ${data?.id}`);
-    res.json({ success: true, messageId: data?.id, sentTo: SUPER_ADMIN_EMAIL });
+    console.log(`[Email] Safety dispatch sent to ${SUPER_ADMIN_EMAIL} via SendGrid`);
+    res.json({ success: true, sentTo: SUPER_ADMIN_EMAIL });
 
   } catch (err: any) {
-    console.error('[Email] Unexpected error:', err);
-    res.status(500).json({ success: false, message: err.message });
+    console.error('[Email] SendGrid error:', err?.response?.body || err.message);
+    res.status(500).json({ success: false, message: err?.response?.body?.errors?.[0]?.message || err.message });
   }
 });
 

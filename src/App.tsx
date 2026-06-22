@@ -593,9 +593,9 @@ export default function App() {
           });
           const emailData = await emailRes.json();
           if (emailData.success) {
-            emailStatusMsg = ` · Email dispatched to HSEQ Super Admin (ID: ${emailData.messageId?.slice(0, 8)}...)`;
+            emailStatusMsg = ` · Email dispatched to ${emailData.sentTo || 'HSEQ recipient'}`;
           } else if (emailData.skipped) {
-            emailStatusMsg = ' · Email skipped (RESEND_API_KEY not set)';
+            emailStatusMsg = ' · Email skipped (SENDGRID_API_KEY not set)';
           } else {
             emailStatusMsg = ` · Email delivery failed: ${emailData.message}`;
           }
@@ -772,9 +772,9 @@ export default function App() {
                 <span className={`px-1.5 py-0.5 rounded text-[10px] font-black border uppercase ${clHeaderBadge}`}>PAKISTAN</span>
               </div>
               <h1 className={`text-lg lg:text-xl font-bold tracking-tight font-display ${clHeaderTitle}`}>
-                Meteorological Watchtower <span className={`text-xs font-mono font-bold ml-1 ${
+                Beaconhouse Meteorological Watchtower <span className={`text-xs font-mono font-bold ml-1 ${
                   isMidnight || !isMinimalist ? 'text-bss-gold-light' : 'text-bss-gold-dark'
-                }`}>v2.5 (BMW)</span>
+                }`}>(BMW)</span>
               </h1>
             </div>
           </div>
@@ -971,7 +971,7 @@ export default function App() {
                 >
                   <span className="flex items-center gap-1.5">
                     <Activity className="w-4 h-4" />
-                    BSS Meteorological Telemetry
+                    Weather Dashboard
                   </span>
                 </button>
                 <button
@@ -991,7 +991,7 @@ export default function App() {
                 >
                   <span className="flex items-center gap-1.5">
                     <ShieldAlert className="w-4 h-4" />
-                    Emergency Dispatch Review
+                    Alerts for Admin Review
                     {safetyAlerts.filter(a => a.status === 'Pending Review').length > 0 && (
                       <span className={`ml-0.5 rounded-full text-[9px] w-5 h-5 flex items-center justify-center font-black ${
                         isMidnight ? 'bg-bss-gold text-slate-950' : 'bg-rose-600 text-white'
@@ -1018,7 +1018,7 @@ export default function App() {
                 >
                   <span className="flex items-center gap-1.5">
                     <Award className="w-4 h-4" />
-                    Gamification & Field Reports
+                    Employee Portal & Incident Reports
                   </span>
                 </button>
               </nav>

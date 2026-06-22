@@ -11,7 +11,9 @@ services:
         sync: false
       - key: WEATHERWALAY_SECRET
         sync: false
-      - key: RESEND_API_KEY
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: ALERT_RECIPIENT_EMAIL
         sync: false
       - key: GEMINI_API_KEY
         sync: false
