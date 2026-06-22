@@ -730,11 +730,14 @@ Return your response strictly in JSON format matching the following schema. No e
 });
 
 // 11. Real email broadcast via SendGrid
-const SUPER_ADMIN_EMAIL = process.env.ALERT_RECIPIENT_EMAIL || 'aymen.abdullah@bh.edu.pk';
+const ALERT_RECIPIENT_EMAILS = (process.env.ALERT_RECIPIENT_EMAIL || 'aymen.abdullah@bh.edu.pk')
+  .split(',')
+  .map(email => email.trim())
+  .filter(Boolean);
 const FROM_EMAIL = 'no-reply@bcp.net.pk';
 
 const sgMail = {
-  async send(message: { from: { email: string; name: string }; to: string; subject: string; html: string }) {
+  async send(message: { from: { email: string; name: string }; to: string[]; subject: string; html: string }) {
     const sgApiKey = process.env.SENDGRID_API_KEY;
     if (!sgApiKey) {
       throw new Error('SENDGRID_API_KEY not configured.');
@@ -747,7 +750,7 @@ const sgMail = {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        personalizations: [{ to: [{ email: message.to }] }],
+        personalizations: [{ to: message.to.map(email => ({ email })) }],
         from: message.from,
         subject: message.subject,
         content: [{ type: 'text/html', value: message.html }],
@@ -802,13 +805,13 @@ app.post('/api/broadcast/email', async (req, res) => {
   try {
     await sgMail.send({
       from: { email: FROM_EMAIL, name: 'BMW Safety Dispatch' },
-      to: SUPER_ADMIN_EMAIL,
+      to: ALERT_RECIPIENT_EMAILS,
       subject: subject || `⚠️ BSS Safety Alert — ${campusName}`,
       html: htmlBody,
     });
 
-    console.log(`[Email] Safety dispatch sent to ${SUPER_ADMIN_EMAIL} via SendGrid`);
-    res.json({ success: true, sentTo: SUPER_ADMIN_EMAIL });
+    console.log(`[Email] Safety dispatch sent to ${ALERT_RECIPIENT_EMAILS.join(', ')} via SendGrid`);
+    res.json({ success: true, sentTo: ALERT_RECIPIENT_EMAILS.join(', ') });
 
   } catch (err: any) {
     console.error('[Email] SendGrid error:', err?.response?.body || err.message);
