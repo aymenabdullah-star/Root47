@@ -112,16 +112,21 @@ async function syncDatabaseFromFirestore() {
 
     // 1. Campuses
     const campusesSnap = await getDocs(collection(db, 'campuses'));
-    // Detect old fake generated data: real sheet campuses have IDs >= 200 (e.g. BSS-750, BSS-282)
-    // Old generated ones are BSS-001 to BSS-210. Check if a known real ID is absent.
+    // Detect old fake generated data. Real sheet campuses have IDs like BSS-750/BSS-282
+    // and real names from the "Campus / Branch" sheet column. Old generated data is
+    // BSS-001..BSS-210 and often falls back to names like "Kohat - Campus 1".
     const hasRealData = campusesSnap.docs.some(d => {
       const numPart = parseInt(d.id.replace('BSS-', ''), 10);
       return numPart >= 250; // Real sheet IDs are 207+, but we check 250 to be safe
     });
-    const needsSheetSeed = campusesSnap.empty || !hasRealData;
+    const hasGeneratedPlaceholderNames = campusesSnap.docs.some(d => {
+      const data = d.data() as Partial<Campus>;
+      return typeof data.name === 'string' && /\s-\sCampus\s+\d+$/i.test(data.name);
+    });
+    const needsSheetSeed = campusesSnap.empty || !hasRealData || hasGeneratedPlaceholderNames;
     if (needsSheetSeed) {
       if (!campusesSnap.empty) {
-        console.log(`[FireSync] Detected ${campusesSnap.size} old generated campuses. Migrating to real sheet data...`);
+        console.log(`[FireSync] Detected ${campusesSnap.size} old/generated campuses. Migrating to real sheet data...`);
       } else {
         console.log('[FireSync] Firestore campuses collection is empty. Fetching from Google Sheet...');
       }

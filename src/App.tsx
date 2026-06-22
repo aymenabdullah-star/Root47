@@ -1371,7 +1371,7 @@ export default function App() {
                                   </span>
                                   <span className={`text-xs font-medium ${isMidnight ? 'text-slate-400' : 'text-slate-500'}`}>{campus.city}</span>
                                 </div>
-                                <h4 className={`font-bold text-sm leading-snug truncate ${isMidnight ? 'text-white' : 'text-slate-900'}`}>{campus.name.includes(' - ') ? campus.name.split(' - ').slice(1).join(' - ') : campus.name}</h4>
+                                <h4 className={`font-bold text-sm leading-snug truncate ${isMidnight ? 'text-white' : 'text-slate-900'}`}>{campus.name}</h4>
                               </div>
                               
                               <div className="flex flex-col items-end gap-1.5 shrink-0">
