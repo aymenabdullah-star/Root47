@@ -434,8 +434,8 @@ export default function App() {
         setSafetyAlerts(data.safetyAlerts);
         setGlobalBannerText({ 
           text: status === 'Broadcasted' 
-            ? 'Safety alert successfully approved and broadcasted and queued for dispatch notifications!' 
-            : 'Alert successfully dismissed from active review lines.', 
+            ? 'Safety alert approved, broadcasted, and queued for dispatch notifications.' 
+            : 'Alert dismissed from the active review queue.', 
           type: 'success' 
         });
 
@@ -558,7 +558,7 @@ export default function App() {
         region: campus.region,
         status: 'Broadcasted',
         severity: campus.operationalStatus === 'Severe Disruption' ? 'A' : 'B',
-        title: draftResult?.subject || `⚠️ SAFETY BROADCAST: ${campus.name}`,
+        title: draftResult?.subject || `⚠️ Safety Broadcast: ${campus.name}`,
         message: draftResult?.emailBody || `Weather notification active for ${campus.name}.`,
         channels: {
           sms: smsDeliveryActive,
@@ -576,7 +576,7 @@ export default function App() {
       setSafetyAlerts(prev => [newAlert, ...prev]);
       triggerSmartphoneDirectNotifications(newAlert);
 
-      // Send real email to super admin via Resend
+      // Send real email to configured recipients via SendGrid.
       let emailStatusMsg = '';
       if (emailDeliveryActive) {
         try {
@@ -1635,7 +1635,7 @@ export default function App() {
                         <Plus className="w-5 h-5 text-indigo-600" />
                         Lodge Crowdfield Incident Report
                       </h4>
-                      <p className="text-xs text-slate-500">Provide direct telemetry fields on physical hazards (Hefty Smog, flash flooding, etc.). BSS Staff @bh.edu.pk email required.</p>
+                      <p className="text-xs text-slate-500">Provide direct telemetry fields on physical hazards such as heavy smog or flash flooding. BSS staff @bh.edu.pk email required.</p>
                     </div>
 
                     <form onSubmit={handleCrowdReportSubmit} className="space-y-3">
@@ -1772,7 +1772,7 @@ export default function App() {
                         <Sliders className="w-5 h-5 text-indigo-600" />
                         HSEQ Incident Moderation Queue
                       </h4>
-                      <p className="text-xs text-slate-500">Administrators check and endorse localized staff field reports. Dismissal deletes safety ticket; endorsement awards +100 points, unlocks "Weather Hero" Badge and pushes live weather modifies.</p>
+                      <p className="text-xs text-slate-500">Administrators review localized staff field reports. Approval awards +100 points, unlocks the "Weather Hero" badge, and updates live weather metrics.</p>
                     </div>
 
                     <div className="space-y-3 overflow-y-auto max-h-[360px] pr-1">
@@ -2002,7 +2002,7 @@ export default function App() {
                         {selectedCampus.operationalStatus === 'Severe Disruption' ? (
                           <>
                             <span className="inline-block w-2.5 h-2.5 bg-rose-500 rounded-full animate-ping shrink-0" />
-                            <span className="font-semibold text-rose-800">Severe Disruption triggered (Immediate broadcast alerts dispatch)</span>
+                            <span className="font-semibold text-rose-800">Severe Disruption triggered (immediate broadcast alert dispatch)</span>
                           </>
                         ) : selectedCampus.operationalStatus === 'Caution' ? (
                           <>
@@ -2058,7 +2058,7 @@ export default function App() {
                     <div className="space-y-2">
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[9px] text-slate-500 font-bold mb-0.5">Air Temp Overide (°C)</label>
+                          <label className="block text-[9px] text-slate-500 font-bold mb-0.5">Air Temp Override (°C)</label>
                           <input 
                             type="number"
                             value={overrideTemp} 
@@ -2171,12 +2171,12 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* DRIFTS PREVIEW LOGS */}
+                    {/* DRAFT PREVIEW LOGS */}
                     {draftResult && (
                       <div className="space-y-3 pt-3.5 border-t border-indigo-200/50 animate-fade-in text-xs">
                         {draftResult.fallback && (
                           <span className="text-[9px] text-amber-600 font-extrabold font-mono uppercase bg-amber-150 px-2 py-0.5 rounded">
-                            Notice: Local Copy Safebuffer Triggered
+                            Notice: Local copy fallback triggered
                           </span>
                         )}
 

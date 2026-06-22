@@ -663,18 +663,22 @@ app.post('/api/alerts/moderate', (req, res) => {
   res.json({ success: true, alert, safetyAlerts });
 });
 
+function normalizeEmailSubject(subject: string): string {
+  return subject.replace(/[A-Za-z]/, firstLetter => firstLetter.toUpperCase());
+}
+
 // 10. Gemini Generative AI communications generator
 app.post('/api/gemini/draft-alert', async (req, res) => {
   const { campusName, hazardType, temp, visibility, condition, description } = req.body;
 
   const promptText = `Draft a structured campus safety broadcast alert for a BSS (Beaconhouse School System) campus named "${campusName}" in Pakistan.
-The campus is under distress from a extreme environmental hazard: "${hazardType}" (Details: ${description || 'N/A'}. Metric levels: Temp: ${temp ?? 'N/A'}°C, Visibility: ${visibility ?? 'N/A'}km, Condition: ${condition ?? 'N/A'}).
-Generate safety directives tailored specifically for BSS students, administrative staff, and parents.
+The campus is under distress from an extreme environmental hazard: "${hazardType}" (Details: ${description || 'N/A'}. Metric levels: Temp: ${temp ?? 'N/A'}°C, Visibility: ${visibility ?? 'N/A'}km, Condition: ${condition ?? 'N/A'}).
+Generate safety directives tailored specifically for BSS students, staff, and parents.
 
 Return your response strictly in JSON format matching the following schema. No extra formatting tools or text outside the raw JSON:
 {
   "subject": "Headline with appropriate hazards emoji e.g. 🌫️, 🌩️, ☔",
-  "emailBody": "Empathetic, structured, formal and professional email text advising staff, students and parents on protective protocols. Must end with the exact mandatory sentence: \\"Real-time tracking of this incident is powered live by regional weather pulse telemetry.\\"",
+  "emailBody": "Empathetic, structured, formal, and professional email text advising staff, students, and parents on protective protocols. Must end with the exact mandatory sentence: \\"Real-time tracking of this incident is powered live by regional weather pulse telemetry.\\"",
   "smsVolume": "A highly concise emergency notice of max 140 characters suitable for SMS & WhatsApp broadcast, explaining status and action."
 }`;
 
@@ -684,7 +688,7 @@ Return your response strictly in JSON format matching the following schema. No e
     // Graceful fallback copy buffer
     console.warn('GEMINI_API_KEY is not configured or left as default. Relying on default fallbacks.');
     const fallback = {
-      subject: `⚠️ urgent Safety Broadcast: ${hazardType} Alert for ${campusName}`,
+      subject: `⚠️ Urgent Safety Broadcast: ${hazardType} Alert for ${campusName}`,
       emailBody: `Dear Beaconhouse Family and School Leaders,\n\nWe are actively monitoring severe meteorological conditions near ${campusName}. In response to the active ${hazardType} indicators (Temp: ${temp ?? 'N/A'}°C, Visibility: ${visibility ?? 'N/A'}km, Condition: ${condition ?? 'N/A'}), we urge all staff and students to prioritize safety protocols.\n\nPrecautionary Directives:\n- Face masks remain compulsory for outdoor activities.\n- Physical education and outdoor assemblies are temporarily suspended.\n- Parents and drivers are requested to observe caution during peak transport hours.\n\nOur onsite facilities team is constantly coordinating updates.\n\nReal-time tracking of this incident is powered live by regional weather pulse telemetry.`,
       smsVolume: `BSS Alert: ${hazardType} dispatch active for ${campusName}. Precautionary guidelines apply. Check inbox for emails. Real-time safety active.`
     };
@@ -712,13 +716,13 @@ Return your response strictly in JSON format matching the following schema. No e
 
     const outputText = response.text;
     if (!outputText) {
-      throw new Error('Empety output returned from AI Studio Gemini services');
+      throw new Error('Empty output returned from AI Studio Gemini services');
     }
 
     const parsed = JSON.parse(outputText);
-    res.json({ success: true, ...parsed });
+    res.json({ success: true, ...parsed, subject: normalizeEmailSubject(parsed.subject) });
   } catch (error: any) {
-    console.error('Gemini communication Generation failed:', error);
+    console.error('Gemini communication generation failed:', error);
     // Graceful fallback standard response
     const fallback = {
       subject: `⚠️ Urgent Safety Broadcast: ${hazardType} Alert for ${campusName}`,
@@ -806,7 +810,7 @@ app.post('/api/broadcast/email', async (req, res) => {
     await sgMail.send({
       from: { email: FROM_EMAIL, name: 'BMW Safety Dispatch' },
       to: ALERT_RECIPIENT_EMAILS,
-      subject: subject || `⚠️ BSS Safety Alert — ${campusName}`,
+      subject: normalizeEmailSubject(subject || `⚠️ BSS Safety Alert — ${campusName}`),
       html: htmlBody,
     });
 
